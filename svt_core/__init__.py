@@ -11,6 +11,9 @@ from svt_core.config import load_config
 from svt_core.logger import Logger, ExcelLog, LogLevel
 from svt_core.ssh import SSHClient, SSHTimeoutError
 
+from svt_core.context import Context
+
+
 __all__ = [
     "Stats",
     "load_config",
@@ -19,4 +22,5 @@ __all__ = [
     "LogLevel",
     "SSHClient",
     "SSHTimeoutError",
+    "Context",
 ]
