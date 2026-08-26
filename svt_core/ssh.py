@@ -10,6 +10,11 @@ class SSHTimeoutError(Exception):
     pass
 
 
+class DUTConnectionLostError(SSHTimeoutError):
+    """Raised when the remote host drops the connection (e.g. DUT crash/reboot)."""
+    pass
+
+
 class SSHClient:
     def __init__(
         self,
@@ -19,6 +24,7 @@ class SSHClient:
         password: str,
         port: int = 22,
         timeout: int = 300,
+        keepalive: int = 30,
     ) -> None:
         self.logger = logger
         self.host = host
@@ -26,6 +32,7 @@ class SSHClient:
         self.password = password
         self.port = port
         self.timeout = timeout
+        self.keepalive = keepalive
         self._client: paramiko.SSHClient | None = None
 
     def _connect(self) -> paramiko.SSHClient:
@@ -38,6 +45,10 @@ class SSHClient:
             password=self.password,
             timeout=self.timeout,
         )
+        # Send keepalives so sshd doesn't kill long-running stress sessions
+        transport = client.get_transport()
+        if transport:
+            transport.set_keepalive(self.keepalive)
         return client
 
     def _get_client(self) -> paramiko.SSHClient:
@@ -77,7 +88,7 @@ class SSHClient:
 
         try:
             client = self._get_client()
-            stdin, stdout, stderr = client.exec_command(command)
+            stdin, stdout, stderr = client.exec_command(command, timeout=timeout)
             exit_status = stdout.channel.recv_exit_status()
             stdin.close()
 
@@ -100,8 +111,21 @@ class SSHClient:
 
             return output
 
+        except KeyboardInterrupt:
+            # Clean up the transport before propagating — prevents the
+            # secondary ConnectionResetError from the dirty channel state.
+            self._client = None
+            self.logger.warning(f"KeyboardInterrupt during SSH command on {self.host}, closing connection.")
+            raise
+
+        except (ConnectionResetError, EOFError) as e:
+            # DUT likely crashed or rebooted (e.g. during DDR stress)
+            self._client = None
+            self.logger.exception(f"Connection lost to {self.host} (DUT may have crashed): {e}")
+            raise DUTConnectionLostError(f"Connection lost to {self.host}: {e}") from e
+
         except (socket.timeout, socket.error) as se:
-            self._client = None  # force reconnect next time
+            self._client = None
             self.logger.exception(f"SSH connection error on {self.host}: {se}")
             raise SSHTimeoutError(f"SSH connection error on {self.host}: {se}") from se
 
