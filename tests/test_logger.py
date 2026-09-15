@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from svt_core.logger import Logger, LogLevel, PASS_LEVEL, FAIL_LEVEL
+from svt_core.logger import ExcelLog, Logger, LogLevel, PASS_LEVEL, FAIL_LEVEL
 
 
 def test_logger_includes_thread_and_bound_context(tmp_path):
@@ -19,6 +19,41 @@ def test_logger_includes_thread_and_bound_context(tmp_path):
 def test_logger_filename_includes_ambient_when_provided(tmp_path):
     logger = Logger.setup("dut-a", "ft", ambient=25, base_dir=str(tmp_path))
     assert Path(logger.log_file).name.startswith("dut-a_ft_amb25C_")
+
+
+def test_excel_log_filename_matches_logger_convention(monkeypatch, tmp_path):
+    class StubUUID:
+        hex = "a1b2c3d4e5f6g7h8"
+
+    monkeypatch.setattr("svt_core.logger.time.strftime", lambda _: "20260915-143022")
+    monkeypatch.setattr("svt_core.logger.uuid4", lambda: StubUUID())
+
+    excel_log = ExcelLog("device1", "stress_test", ambient=25, base_dir=str(tmp_path))
+
+    assert (
+        Path(excel_log.filename).name
+        == "device1_stress_test_amb25C_20260915-143022_a1b2c3d4.xlsx"
+    )
+    assert excel_log.id == "device1_stress_test_amb25C_20260915-143022_a1b2c3d4"
+    assert (
+        Path(excel_log.filename).parent
+        == tmp_path / "device1" / "stress_test_excel"
+    )
+
+
+def test_excel_log_filename_omits_ambient_when_not_provided(monkeypatch, tmp_path):
+    class StubUUID:
+        hex = "deadbeef12345678"
+
+    monkeypatch.setattr("svt_core.logger.time.strftime", lambda _: "20260915-143022")
+    monkeypatch.setattr("svt_core.logger.uuid4", lambda: StubUUID())
+
+    excel_log = ExcelLog("device1", "stress_test", base_dir=str(tmp_path))
+
+    assert (
+        Path(excel_log.filename).name
+        == "device1_stress_test_20260915-143022_deadbeef.xlsx"
+    )
 
 
 def test_logger_exception_includes_traceback(tmp_path):
