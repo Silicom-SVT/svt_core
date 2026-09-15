@@ -367,16 +367,23 @@ class ExcelLog:
     at the start of any background thread to route its data to the correct sheet.
     """
 
-    def __init__(self, dut: str, test_type: str, base_dir: str = ".") -> None:
+    def __init__(
+        self,
+        dut: str,
+        test_type: str,
+        ambient: int | None = None,
+        base_dir: str = ".",
+    ) -> None:
         import threading
 
         self.dut = dut
-        self.id = f"{datetime.now().strftime('%Y-%m-%d %H-%M-%S')}_{dut}"
-
-        safe_id = "".join(c if c.isalnum() or c in "_-" else "_" for c in self.id)
+        uuid = uuid4().hex[:8]
+        timestamp = time.strftime("%Y%m%d-%H%M%S")
+        ambient_part = f"_amb{ambient}C" if ambient is not None else ""
+        self.id = f"{dut}_{test_type}{ambient_part}_{timestamp}_{uuid}"
         full_dir = os.path.join(base_dir, dut, f"{test_type}_excel")
         os.makedirs(full_dir, exist_ok=True)
-        self.filename = os.path.join(full_dir, f"{dut}_{safe_id}.xlsx")
+        self.filename = os.path.join(full_dir, f"{self.id}.xlsx")
 
         self._tabs: dict[str, dict[int, dict[str, str]]] = {
             "Main": {},
