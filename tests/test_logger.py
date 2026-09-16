@@ -37,7 +37,7 @@ def test_excel_log_filename_matches_logger_convention(monkeypatch, tmp_path):
     assert excel_log.id == "device1_stress_test_amb25C_20260915-143022_a1b2c3d4"
     assert (
         Path(excel_log.filename).parent
-        == tmp_path / "device1" / "stress_test_excel"
+        == tmp_path / "device1" / "stress_test"
     )
 
 

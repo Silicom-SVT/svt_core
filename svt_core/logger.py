@@ -381,7 +381,8 @@ class ExcelLog:
         timestamp = time.strftime("%Y%m%d-%H%M%S")
         ambient_part = f"_amb{ambient}C" if ambient is not None else ""
         self.id = f"{dut}_{test_type}{ambient_part}_{timestamp}_{uuid}"
-        full_dir = os.path.join(base_dir, dut, f"{test_type}_excel")
+        # Same folder as Logger.setup() uses, so all log types live together.
+        full_dir = os.path.join(base_dir, dut, test_type)
         os.makedirs(full_dir, exist_ok=True)
         self.filename = os.path.join(full_dir, f"{self.id}.xlsx")
 
